@@ -22,13 +22,16 @@ function Home({
   tx,
   injectedProvider,
   loadWeb3Modal,
+  USE_BURNER_WALLET,
 }) {
   // you can also use hooks locally in your component of choice
   // in this case, let's keep track of 'purpose' variable from our contract
   const yourBalance = balance && balance.toNumber && balance.toNumber();
   const [yourCollectibles, setYourCollectibles] = useState();
-  //const isSigner = injectedProvider && injectedProvider.getSigner && injectedProvider.getSigner()._isSigner;
-  const isSigner = true;
+  const isSigner = USE_BURNER_WALLET
+    ? USE_BURNER_WALLET
+    : injectedProvider && injectedProvider.getSigner && injectedProvider.getSigner()._isSigner;
+
   useEffect(() => {
     const updateYourCollectibles = async () => {
       const collectibleUpdate = [];

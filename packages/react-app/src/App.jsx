@@ -330,6 +330,7 @@ function App(props) {
             tx={tx}
             injectedProvider={injectedProvider}
             loadWeb3Modal={loadWeb3Modal}
+            USE_BURNER_WALLET={USE_BURNER_WALLET}
           />
         </Route>
         <Route exact path="/debug">
