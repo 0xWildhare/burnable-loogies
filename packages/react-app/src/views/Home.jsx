@@ -25,7 +25,7 @@ function Home({
   USE_BURNER_WALLET,
 }) {
   // you can also use hooks locally in your component of choice
-  // in this case, let's keep track of 'purpose' variable from our contract
+
   const yourBalance = balance && balance.toNumber && balance.toNumber();
   const mintPrice = 1000000000000000;
   const [yourCollectibles, setYourCollectibles] = useState();
@@ -146,13 +146,15 @@ function Home({
                   >
                     Transfer
                   </Button>
-                  <Button
-                    onClick={() => {
-                      tx(writeContracts.YourCollectible.burn(id));
-                    }}
-                  >
-                    Burn
-                  </Button>
+                  <div style={{ marginTop: 8 }}>
+                    <Button
+                      onClick={() => {
+                        tx(writeContracts.YourCollectible.burn(id));
+                      }}
+                    >
+                      Burn
+                    </Button>
+                  </div>
                 </div>
               </List.Item>
             );

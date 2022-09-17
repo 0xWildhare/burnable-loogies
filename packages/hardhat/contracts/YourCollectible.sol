@@ -5,6 +5,7 @@ pragma solidity >=0.8.0 <0.9.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import 'base64-sol/base64.sol';
 
 
@@ -16,19 +17,41 @@ import './ToColor.sol';
 contract YourCollectible is ERC721Enumerable, Ownable {
 
   using Strings for uint256;
-
+  using ECDSA for bytes32;
   using ToColor for bytes3;
 
   uint private _tokenIds;
-string public purpose = "we here bitches";
-  constructor() public ERC721("Loogies", "LOOG") {
-    // RELEASE THE LOOGIES!
-  }
+  event Deposit(address indexed sender, uint amount, uint balance);
+  event ExecuteTransaction(address indexed owner, address payable to, uint256 value, bytes data, uint256 nonce, bytes32 hash, bytes result);
+  event Owner(address indexed owner, bool added);
 
+  mapping(address => bool) public isOwner;
   mapping (uint256 => bytes3) public color;
   mapping (uint256 => uint256) public chubbiness;
 
   uint256 mintDeadline = block.timestamp + 24 hours;
+  uint public signaturesRequired;
+  uint public nonce;
+  uint public chainId;
+
+
+  modifier onlySelf() {
+    require(msg.sender == address(this), "Not Self");
+    _;
+  }
+
+  constructor(uint256 _chainId, address[] memory _owners, uint _signaturesRequired) ERC721("Burnable Loogies", "BLOOG") {
+    require(_signaturesRequired > 0, "constructor: must be non-zero sigs required");
+    signaturesRequired = _signaturesRequired;
+    for (uint i = 0; i < _owners.length; i++) {
+        address owner = _owners[i];
+        require(owner != address(0), "constructor: zero address");
+        require(!isOwner[owner], "constructor: owner not unique");
+        isOwner[owner] = true;
+        emit Owner(owner, isOwner[owner]);
+    }
+    chainId = _chainId;
+  }
 
   function mintItem()
       payable
@@ -53,14 +76,9 @@ string public purpose = "we here bitches";
   function burn(uint256 tokenId) public virtual {
       //solhint-disable-next-line max-line-length
       require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner nor approved");
-      uint returnValue = (address(this).balance / totalSupply()) - 1; //-1 is a 1 wei tax what the fuck you gonna do about it?
+      uint returnValue = (address(this).balance / totalSupply()) - 1; //-1 wei to prevent rounding errors
       _burn(tokenId);
       payable(msg.sender).transfer(returnValue);
-  }
-
-  function returnValue() public view returns(uint) {
-    uint returnValue = (address(this).balance / totalSupply()) - 1;
-    return returnValue;
   }
 
   function tokenURI(uint256 id) public view override returns (string memory) {
@@ -157,7 +175,66 @@ string public purpose = "we here bitches";
       return string(bstr);
   }
 
+  function addSigner(address newSigner, uint256 newSignaturesRequired) public onlySelf {
+        require(newSigner != address(0), "addSigner: zero address");
+        require(!isOwner[newSigner], "addSigner: owner not unique");
+        require(newSignaturesRequired > 0, "addSigner: must be non-zero sigs required");
+        isOwner[newSigner] = true;
+        signaturesRequired = newSignaturesRequired;
+        emit Owner(newSigner, isOwner[newSigner]);
+    }
 
+    function removeSigner(address oldSigner, uint256 newSignaturesRequired) public onlySelf {
+        require(isOwner[oldSigner], "removeSigner: not owner");
+        require(newSignaturesRequired > 0, "removeSigner: must be non-zero sigs required");
+        isOwner[oldSigner] = false;
+        signaturesRequired = newSignaturesRequired;
+        emit Owner(oldSigner, isOwner[oldSigner]);
+    }
+
+    function updateSignaturesRequired(uint256 newSignaturesRequired) public onlySelf {
+        require(newSignaturesRequired > 0, "updateSignaturesRequired: must be non-zero sigs required");
+        signaturesRequired = newSignaturesRequired;
+    }
+
+    function getTransactionHash(uint256 _nonce, address to, uint256 value, bytes memory data) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(address(this), chainId, _nonce, to, value, data));
+    }
+
+    function executeTransaction(address payable to, uint256 value, bytes memory data, bytes[] memory signatures)
+        public
+        returns (bytes memory)
+    {
+        require(isOwner[msg.sender], "executeTransaction: only owners can execute");
+        bytes32 _hash =  getTransactionHash(nonce, to, value, data);
+        nonce++;
+        uint256 validSignatures;
+        address duplicateGuard;
+        for (uint i = 0; i < signatures.length; i++) {
+            address recovered = recover(_hash, signatures[i]);
+            require(recovered > duplicateGuard, "executeTransaction: duplicate or unordered signatures");
+            duplicateGuard = recovered;
+            if(isOwner[recovered]){
+              validSignatures++;
+            }
+        }
+
+        require(validSignatures>=signaturesRequired, "executeTransaction: not enough valid signatures");
+
+        (bool success, bytes memory result) = to.call{value: value}(data);
+        require(success, "executeTransaction: tx failed");
+
+        emit ExecuteTransaction(msg.sender, to, value, data, nonce-1, _hash, result);
+        return result;
+    }
+
+    function recover(bytes32 _hash, bytes memory _signature) public pure returns (address) {
+        return _hash.toEthSignedMessageHash().recover(_signature);
+    }
+
+    receive() payable external {
+        emit Deposit(msg.sender, msg.value, address(this).balance);
+    }
 
 
 }
