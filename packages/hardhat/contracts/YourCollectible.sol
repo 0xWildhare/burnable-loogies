@@ -31,11 +31,14 @@ string public purpose = "we here bitches";
   uint256 mintDeadline = block.timestamp + 24 hours;
 
   function mintItem()
+      payable
       public
       returns (uint256)
   {
       require( block.timestamp < mintDeadline, "DONE MINTING");
       _tokenIds++;
+
+      require(msg.value >= 1000000000000000, "shit aint free");
 
       uint256 id = _tokenIds;
       _mint(msg.sender, id);
@@ -45,6 +48,19 @@ string public purpose = "we here bitches";
       chubbiness[id] = 35+((55*uint256(uint8(predictableRandom[3])))/255);
 
       return id;
+  }
+
+  function burn(uint256 tokenId) public virtual {
+      //solhint-disable-next-line max-line-length
+      require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner nor approved");
+      uint returnValue = (address(this).balance / totalSupply()) - 1; //-1 is a 1 wei tax what the fuck you gonna do about it?
+      _burn(tokenId);
+      payable(msg.sender).transfer(returnValue);
+  }
+
+  function returnValue() public view returns(uint) {
+    uint returnValue = (address(this).balance / totalSupply()) - 1;
+    return returnValue;
   }
 
   function tokenURI(uint256 id) public view override returns (string memory) {
