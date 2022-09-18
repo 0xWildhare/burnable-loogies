@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 //import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import 'base64-sol/base64.sol';
@@ -14,7 +14,7 @@ import './ToColor.sol';
 
 // GET LISTED ON OPENSEA: https://testnets.opensea.io/get-listed/step-two
 
-contract YourCollectible is ERC721Enumerable, Ownable {
+contract YourCollectible is ERC721Enumerable {
 
   using Strings for uint256;
   using ECDSA for bytes32;
@@ -29,11 +29,16 @@ contract YourCollectible is ERC721Enumerable, Ownable {
   mapping (uint256 => bytes3) public color;
   mapping (uint256 => uint256) public chubbiness;
 
-  uint256 mintDeadline = block.timestamp + 24 hours;
   uint public signaturesRequired;
   uint public nonce;
   uint public chainId;
 
+  address[] public owners;
+
+  modifier onlyOwner() {
+    require(isOwner[msg.sender], "Not owner");
+    _;
+  }
 
   modifier onlySelf() {
     require(msg.sender == address(this), "Not Self");
@@ -48,6 +53,7 @@ contract YourCollectible is ERC721Enumerable, Ownable {
         require(owner != address(0), "constructor: zero address");
         require(!isOwner[owner], "constructor: owner not unique");
         isOwner[owner] = true;
+        owners.push(owner);
         emit Owner(owner, isOwner[owner]);
     }
     chainId = _chainId;
@@ -58,11 +64,10 @@ contract YourCollectible is ERC721Enumerable, Ownable {
       public
       returns (uint256)
   {
-      require( block.timestamp < mintDeadline, "DONE MINTING");
+
+      require(msg.value >= 1000000000000000, "pay up");
+
       _tokenIds++;
-
-      require(msg.value >= 1000000000000000, "shit aint free");
-
       uint256 id = _tokenIds;
       _mint(msg.sender, id);
 
@@ -180,6 +185,7 @@ contract YourCollectible is ERC721Enumerable, Ownable {
         require(!isOwner[newSigner], "addSigner: owner not unique");
         require(newSignaturesRequired > 0, "addSigner: must be non-zero sigs required");
         isOwner[newSigner] = true;
+        owners.push(newSigner);
         signaturesRequired = newSignaturesRequired;
         emit Owner(newSigner, isOwner[newSigner]);
     }
@@ -187,9 +193,27 @@ contract YourCollectible is ERC721Enumerable, Ownable {
     function removeSigner(address oldSigner, uint256 newSignaturesRequired) public onlySelf {
         require(isOwner[oldSigner], "removeSigner: not owner");
         require(newSignaturesRequired > 0, "removeSigner: must be non-zero sigs required");
-        isOwner[oldSigner] = false;
+        _removeOwner(oldSigner);
         signaturesRequired = newSignaturesRequired;
         emit Owner(oldSigner, isOwner[oldSigner]);
+    }
+
+    function _removeOwner(address _oldSigner) private {
+      isOwner[_oldSigner] = false;
+      uint256 ownersLength = owners.length;
+      address[] memory poppedOwners = new address[](owners.length);
+      for (uint256 i = ownersLength - 1; i >= 0; i--) {
+        if (owners[i] != _oldSigner) {
+          poppedOwners[i] = owners[i];
+          owners.pop();
+        } else {
+          owners.pop();
+          for (uint256 j = i; j < ownersLength - 1; j++) {
+            owners.push(poppedOwners[j]);
+          }
+          return;
+        }
+      }
     }
 
     function updateSignaturesRequired(uint256 newSignaturesRequired) public onlySelf {
@@ -203,9 +227,9 @@ contract YourCollectible is ERC721Enumerable, Ownable {
 
     function executeTransaction(address payable to, uint256 value, bytes memory data, bytes[] memory signatures)
         public
+        onlyOwner
         returns (bytes memory)
     {
-        require(isOwner[msg.sender], "executeTransaction: only owners can execute");
         bytes32 _hash =  getTransactionHash(nonce, to, value, data);
         nonce++;
         uint256 validSignatures;
