@@ -30,7 +30,7 @@ import externalContracts from "./contracts/external_contracts";
 // contracts
 import deployedContracts from "./contracts/hardhat_contracts.json";
 import { Transactor, Web3ModalSetup } from "./helpers";
-import { Home, ExampleUI, Hints, Subgraph } from "./views";
+import { Home, ExampleUI, Hints, Subgraph, CreateTransaction } from "./views";
 import { useStaticJsonRPC } from "./hooks";
 
 const { ethers } = require("ethers");
@@ -162,20 +162,15 @@ function App(props) {
     console.log(`⛓ A new mainnet block is here: ${mainnetProvider._lastBlockNumber}`);
   });
 
-  // Then read your DAI balance like:
-  /*
-  const myMainnetDAIBalance = useContractReader(mainnetContracts, "DAI", "balanceOf", [
-    "0x34aA3F359A9D614239015126635CE7732c18fDF3",
-  ]);
-  */
-  // keep track of a variable from the contract in the local React state:
+  const contractName = "Gov";
+  const contractAddress = readContracts?.Gov?.address;
 
   // keep track of a variable from the contract in the local React state:
-  const balance = useContractReader(readContracts, "Gov", "balanceOf", [address]);
+  const balance = useContractReader(readContracts, contractName, "balanceOf", [address]);
   console.log("🤗 balance:", balance);
 
   // 📟 Listen for broadcast events
-  const transferEvents = useEventListener(readContracts, "Gov", "Transfer", localProvider, 1);
+  const transferEvents = useEventListener(readContracts, contractName, "Transfer", localProvider, 1);
   console.log("📟 Transfer events:", transferEvents);
 
   /*
@@ -222,6 +217,16 @@ function App(props) {
     localChainId,
     //myMainnetDAIBalance,
   ]);
+
+  const [signaturesRequired, setSignaturesRequired] = useState();
+  const [nonce, setNonce] = useState(0);
+
+  const signaturesRequiredContract = useContractReader(readContracts, contractName, "signaturesRequired");
+  const nonceContract = useContractReader(readContracts, contractName, "nonce");
+  useEffect(() => {
+    setSignaturesRequired(signaturesRequiredContract);
+    setNonce(nonceContract);
+  }, [signaturesRequiredContract, nonceContract]);
 
   const loadWeb3Modal = useCallback(async () => {
     const provider = await web3Modal.connect();
@@ -299,6 +304,9 @@ function App(props) {
         <Menu.Item key="/">
           <Link to="/">App Home</Link>
         </Menu.Item>
+        <Menu.Item key="/propose">
+          <Link to="/propose">Propose Transaction</Link>
+        </Menu.Item>
         <Menu.Item key="/debug">
           <Link to="/debug">Debug Contracts</Link>
         </Menu.Item>
@@ -321,6 +329,22 @@ function App(props) {
             USE_BURNER_WALLET={USE_BURNER_WALLET}
           />
         </Route>
+        <Route path="/propose">
+          <CreateTransaction
+            contractName={contractName}
+            contractAddress={contractAddress}
+            mainnetProvider={mainnetProvider}
+            localProvider={localProvider}
+            price={price}
+            tx={tx}
+            readContracts={readContracts}
+            userSigner={userSigner}
+            DEBUG={DEBUG}
+            nonce={nonce}
+            blockExplorer={blockExplorer}
+            signaturesRequired={signaturesRequired}
+          />
+        </Route>
         <Route exact path="/debug">
           {/*
                 🎛 this scaffolding is full of commonly used components
@@ -329,7 +353,7 @@ function App(props) {
             */}
 
           <Contract
-            name="Gov"
+            name={contractName}
             price={price}
             signer={userSigner}
             provider={localProvider}
