@@ -31,12 +31,17 @@ contract Multisig {
     _;
   }
 
-  constructor(uint256 _chainId) {
+  modifier requireNonZeroSignatures(uint _signaturesRequired) {
+    require(_signaturesRequired > 0, "Must be non-zero sigs required");
+    _;
+  }
 
+  constructor(uint256 _chainId) {
+    signaturesRequired = 3; //nominal value, up for debate
     chainId = _chainId;
   }
 
-  function addSigner(address newSigner, uint256 newSignaturesRequired) public onlySelf {
+  function addSigner(address newSigner, uint256 newSignaturesRequired) public onlySelf requireNonZeroSignatures(newSignaturesRequired) {
         require(newSigner != address(0), "addSigner: zero address");
         require(!isOwner[newSigner], "addSigner: owner not unique");
 
@@ -46,7 +51,7 @@ contract Multisig {
         emit Owner(newSigner, isOwner[newSigner]);
     }
 
-    function removeSigner(address oldSigner, uint256 newSignaturesRequired) public onlySelf {
+    function removeSigner(address oldSigner, uint256 newSignaturesRequired) public onlySelf requireNonZeroSignatures(newSignaturesRequired) {
         require(isOwner[oldSigner], "removeSigner: not owner");
 
         _removeOwner(oldSigner);
@@ -72,7 +77,7 @@ contract Multisig {
       }
     }
 
-    function updateSignaturesRequired(uint256 newSignaturesRequired) public onlySelf {
+    function updateSignaturesRequired(uint256 newSignaturesRequired) public onlySelf requireNonZeroSignatures(newSignaturesRequired){
 
         signaturesRequired = newSignaturesRequired;
     }
@@ -86,8 +91,8 @@ contract Multisig {
         onlyOwner
         returns (bytes memory)
     {
-        require(signaturesRequired>0, "executeTransaction: signaturesRequired=0");
-          bytes32 _hash =  getTransactionHash(nonce, to, value, data);
+
+        bytes32 _hash =  getTransactionHash(nonce, to, value, data);
         nonce++;
         uint256 validSignatures;
         address duplicateGuard;

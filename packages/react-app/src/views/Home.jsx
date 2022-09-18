@@ -39,9 +39,9 @@ function Home({
       for (let tokenIndex = 0; tokenIndex < balance; tokenIndex++) {
         try {
           console.log("GEtting token index", tokenIndex);
-          const tokenId = await readContracts.YourCollectible.tokenOfOwnerByIndex(address, tokenIndex);
+          const tokenId = await readContracts.Gov.tokenOfOwnerByIndex(address, tokenIndex);
           console.log("tokenId", tokenId);
-          const tokenURI = await readContracts.YourCollectible.tokenURI(tokenId);
+          const tokenURI = await readContracts.Gov.tokenURI(tokenId);
           const jsonManifestString = atob(tokenURI.substring(29));
           console.log("jsonManifestString", jsonManifestString);
           /*
@@ -76,7 +76,7 @@ function Home({
           <Button
             type={"primary"}
             onClick={() => {
-              tx(writeContracts.YourCollectible.mintItem({ value: mintPrice }));
+              tx(writeContracts.Gov.mintItem({ value: mintPrice }));
             }}
           >
             MINT
@@ -108,7 +108,7 @@ function Home({
                   <a
                     href={
                       "https://opensea.io/assets/" +
-                      (readContracts && readContracts.YourCollectible && readContracts.YourCollectible.address) +
+                      (readContracts && readContracts.Gov && readContracts.Gov.address) +
                       "/" +
                       item.id
                     }
@@ -141,7 +141,7 @@ function Home({
                   <Button
                     onClick={() => {
                       console.log("writeContracts", writeContracts);
-                      tx(writeContracts.YourCollectible.transferFrom(address, transferToAddresses[id], id));
+                      tx(writeContracts.Gov.transferFrom(address, transferToAddresses[id], id));
                     }}
                   >
                     Transfer
@@ -149,7 +149,7 @@ function Home({
                   <div style={{ marginTop: 8 }}>
                     <Button
                       onClick={() => {
-                        tx(writeContracts.YourCollectible.burn(id));
+                        tx(writeContracts.Gov.rageQuit(id));
                       }}
                     >
                       Burn

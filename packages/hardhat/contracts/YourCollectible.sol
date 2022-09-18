@@ -1,6 +1,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 //SPDX-License-Identifier: MIT
 
+
 //import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 //import "@openzeppelin/contracts/access/Ownable.sol";
@@ -25,7 +26,6 @@ contract YourCollectible is ERC721Enumerable, Multisig {
 
   constructor(uint256 _chainId) Multisig(_chainId) ERC721("Burnable Loogies", "BLOOG") {
 
-    chainId = _chainId;
   }
 
   function mintItem()
@@ -47,14 +47,19 @@ contract YourCollectible is ERC721Enumerable, Multisig {
       return id;
   }
 
-  function burn(uint256 tokenId) public virtual {
-      //solhint-disable-next-line max-line-length
+  function rageQuit(uint256 tokenId) public virtual {
+
       require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner nor approved");
+      require(address(this).balance > totalSupply(), "nothing to claim");
       uint returnValue = (address(this).balance / totalSupply()) - 1; //-1 wei to prevent rounding errors
       _burn(tokenId);
       payable(msg.sender).transfer(returnValue);
   }
 
+  function burn(uint256 tokenId) public virtual {
+      require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner nor approved");
+      _burn(tokenId);
+  }
 
 //art stuff
   function tokenURI(uint256 id) public view override returns (string memory) {
@@ -151,5 +156,5 @@ contract YourCollectible is ERC721Enumerable, Multisig {
       return string(bstr);
   }
 
-  
+
 }
